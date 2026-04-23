@@ -30,6 +30,8 @@ if [ -z "$python_bin" ]; then
     echo "ERROR: Instalation error, python3 or python is required"
     exit 1
 fi
+zip_bin="$(command -v zip || true)"
+unzip_bin="$(command -v unzip || true)"
 
 
 ### Setting date value for the construct name of the backup files ###
@@ -122,7 +124,21 @@ if [ $error -eq 0 ]; then echo "OK"; else echo "WARNING: manifest.json could not
 
 ### Compressing the database dump and filestore using Odoo's zip backup layout ###
 echo -n "Compressing Odoo.sh backup: $backup_name ... "
-BACKUP_WORKDIR="$workdir" BACKUP_FILESTORE="$ODOO_DATA_DIR/filestore/$database" BACKUP_OUTPUT="$HOME/backup/$backup_name" "$python_bin" <<'PY' >> "$logfile" 2>&1
+if [ -n "$zip_bin" ]; then
+    ln -s "$ODOO_DATA_DIR/filestore/$database" "$workdir/filestore" >> "$logfile" 2>&1
+    error=$?
+    if [ $error -ne 0 ]; then echo "ERROR: $error"; exit 5; fi
+
+    (
+        cd "$workdir" || exit 1
+        if [ -f "manifest.json" ]; then
+            "$zip_bin" -q -r "$HOME/backup/$backup_name" dump.sql manifest.json filestore
+        else
+            "$zip_bin" -q -r "$HOME/backup/$backup_name" dump.sql filestore
+        fi
+    ) >> "$logfile" 2>&1
+else
+    BACKUP_WORKDIR="$workdir" BACKUP_FILESTORE="$ODOO_DATA_DIR/filestore/$database" BACKUP_OUTPUT="$HOME/backup/$backup_name" "$python_bin" <<'PY' >> "$logfile" 2>&1
 import os
 import zipfile
 
@@ -149,6 +165,28 @@ with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=T
         for filename in files:
             archive.write(os.path.join(root, filename), os.path.join(archive_root, filename))
 PY
+fi
 error=$?
 if [ $error -eq 0 ]; then echo "OK"; else echo "ERROR: $error"; exit 5; fi
+
+### Validating the generated zip before it is uploaded or imported ###
+echo -n "Testing Odoo.sh backup zip: $backup_name ... "
+if [ -n "$unzip_bin" ]; then
+    "$unzip_bin" -t "$HOME/backup/$backup_name" >> "$logfile" 2>&1
+else
+    BACKUP_OUTPUT="$HOME/backup/$backup_name" "$python_bin" <<'PY' >> "$logfile" 2>&1
+import os
+import sys
+import zipfile
+
+with zipfile.ZipFile(os.environ["BACKUP_OUTPUT"], "r") as archive:
+    bad_file = archive.testzip()
+
+if bad_file:
+    print("Corrupt zip member: {}".format(bad_file))
+    sys.exit(1)
+PY
+fi
+error=$?
+if [ $error -eq 0 ]; then echo "OK"; else echo "ERROR: $error"; exit 6; fi
 echo "$backup_name"

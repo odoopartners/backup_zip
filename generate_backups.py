@@ -69,6 +69,10 @@ def dump_db_odoo(db_name):
         output_from_script = operation.splitlines()
         dump_name = output_from_script[-1]
 
+    except subprocess.CalledProcessError as e:
+        dump_name = False
+        print("Error generating backup files: ")
+        print(e.output.decode('utf-8', errors='replace'))
     except Exception as e:
         dump_name = False
         print("Error generating backup files: ")
