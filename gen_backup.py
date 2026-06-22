@@ -117,8 +117,6 @@ def upload_dump_to_s3(list_db, data):
                     'cp',
                     dir_dump,
                     bucket_name,
-                    '--acl',
-                    'public-read',
                     '--no-progress',
                     '--only-show-errors',
                 ])
