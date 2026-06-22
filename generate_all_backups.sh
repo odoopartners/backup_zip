@@ -22,7 +22,7 @@ while read deploy; \
           kubectl cp ./backups/generate_backups.py odoo/$pod:/opt/odoo_dir/odoo
           kubectl cp ./backups/odoo-backup.sh odoo/$pod:/opt/odoo_dir/odoo
           echo "- Executing script..."
-          kubectl exec -n odoo -t $pod -- bash -c "cd /opt/odoo_dir/odoo && python generate_backups.py localhost:8069 $deploy"
+          kubectl exec -n odoo $pod -- bash --norc --noprofile -c "cd /opt/odoo_dir/odoo && python generate_backups.py localhost:8069 $deploy"
 		  error=$?
 		  if [ $error -eq 0 ]; then echo "OK"; else echo "ERROR: $error"; fi
 
