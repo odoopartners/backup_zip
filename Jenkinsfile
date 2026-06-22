@@ -111,8 +111,8 @@ def generate_backup(list) {
                     -v ~/.aws:/root/.aws \
                     -v ~/.kube/config:/root/.kube/config \
                     odoopartners/awscli-kubectl:v1.0 \
-                    kubectl exec -n odoo ${list_pods[j]} -- bash --norc --noprofile -c \
-                    'cd /tmp && python gen_backup.py localhost:8069 ${list[i]} ${db_name}'"""
+                    kubectl exec -n odoo ${list_pods[j]} --env LC_ALL=C -- bash --norc --noprofile -c \
+                    'cd /tmp && python3 gen_backup.py localhost:8069 ${list[i]} ${db_name}'"""
             }
         }
     }
